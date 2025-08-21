@@ -28,11 +28,11 @@ app.get('/posts', (c) => {
 // Get a specific post by slug (slug is the filename without extension)
 app.get('/posts/:slug', async (c) => {
 	const { slug } = c.req.param()
-	const metadata = JSON.parse((await c.env.KV_STORAGE.get(`${slug}.md`)) as string)
+	const metadata = JSON.parse((await c.env.KV_STORAGE.get(`${slug}.md`)) as string) as PostSave
 
 	return c.render(
 		<MainLayout title="Lueur CMS" meta={[{ name: 'description', content: 'Lueur CMS' }]}>
-			<PostPage metadata={metadata} />
+			<PostPage metadata={metadata} slug={slug} />
 		</MainLayout>
 	)
 })
@@ -117,7 +117,7 @@ app.post('/api/posts/:slug/create', async (c) => {
 					`${result.content.name}`,
 					JSON.stringify({
 						download_url: result.content.download_url,
-						sha: result.commit.sha,
+						sha: result.content.sha,
 						name: result.content.name,
 						path: result.content.path,
 						updated_at: result.commit.committer.date,
@@ -136,8 +136,71 @@ app.post('/api/posts/:slug/create', async (c) => {
 })
 
 // Update a post by slug (slug is the filename without extension)
-app.put('/api/posts/:slug/update', (c) => {
-	return c.json({ post: {} })
+app.put('/api/posts/:slug/update', async (c) => {
+	const { slug } = c.req.param()
+	const { message, content } = await c.req.json()
+
+	if (!slug) {
+		return c.json({ error: 'Missing either required params repo, owner, or slug' })
+	}
+
+	const githubUrl = c.env.GITHUB_BASE_API_URL
+	const file_path = `content/blog/${slug}.md`
+
+	const { sha: previous_sha }: PostSave = JSON.parse(
+		(await c.env.KV_STORAGE.get(`${slug}.md`)) as string
+	)
+	console.log(previous_sha)
+
+	try {
+		const response = await fetch(
+			`${githubUrl}/repos/${hub_config.owner}/${hub_config.repo}/contents/${file_path}`,
+			{
+				method: 'PUT',
+				headers: {
+					Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
+					Accept: 'application/vnd.github.v3+json',
+					'Content-Type': 'application/json',
+					'X-GitHub-Api-Version': '2022-11-28',
+					'User-Agent': 'lueur-cms',
+				},
+				body: JSON.stringify({
+					message: message,
+					content: btoa(content),
+					branch: hub_config.branch,
+					commiter: hub_config.committer,
+					sha: previous_sha,
+				}),
+			}
+		)
+
+		if (response.ok) {
+			const result = (await response.json()) as PostType
+
+			// Send the post metadata to KV storage webhook
+			try {
+				const values = await c.env.KV_STORAGE.list({ prefix: `${slug}.md` })
+				console.log(values)
+				await c.env.KV_STORAGE.put(
+					`${result.content.name}`, //-${values.keys.length + 1}`,
+					JSON.stringify({
+						download_url: result.content.download_url,
+						sha: result.content.sha,
+						name: result.content.name,
+						path: result.content.path,
+						updated_at: result.commit.committer.date,
+					} as PostSave)
+				)
+			} catch (error) {
+				console.error(error)
+			}
+			return c.json({ result }, 201)
+		} else {
+			throw new Error('An error occured', { cause: JSON.stringify(response.json(), null, 2) })
+		}
+	} catch (error) {
+		return c.json(c.error, 500)
+	}
 })
 
 // Delete a post by slug (slug is the filename without extension)

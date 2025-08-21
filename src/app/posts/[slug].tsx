@@ -1,7 +1,7 @@
 import { FC } from 'hono/jsx'
 import { PostSave } from '../../types/save'
 
-export const PostPage: FC<{ metadata: PostSave | null }> = ({ metadata }) => {
+export const PostPage: FC<{ metadata: PostSave | null; slug: string }> = ({ metadata, slug }) => {
 	console.log(metadata)
 	return (
 		<div>
