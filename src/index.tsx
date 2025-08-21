@@ -38,16 +38,29 @@ app.post('/api/posts/save', async (c) => {
 	const githubUrl = c.env.GITHUB_BASE_API_URL
 	const file_path = `content/blog/posts-list.json`
 
+	let newList: PostSave[] = []
+
+	if (!post) {
+		return c.json({ message: 'Missing required param post' }, 500)
+	}
+
 	try {
 		const listResponse = await getPostsList()
-		const newList = listResponse.map((item) => {
-			if (item.path === post.path) {
-				return {
-					...item,
-					...post,
+		if (!listResponse) {
+			return c.json({ message: 'An error occured while getting posts list' }, 500)
+		}
+		if (!listResponse.find((item) => item?.path === post.path)) {
+			listResponse.push(post)
+		} else {
+			newList = listResponse.map((item) => {
+				if (item?.path === post.path) {
+					return {
+						...item,
+						...post,
+					}
 				}
-			}
-		})
+			})
+		}
 		console.log(listResponse)
 
 		const response = await fetch(
