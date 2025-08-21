@@ -1,0 +1,116 @@
+{
+	"__name": "Blog Post",
+	"$ref": "#/definitions/blogPost",
+	"definitions": {
+		"blogPost": {
+			"__name": "blog-title",
+			"_description": "The blog post schema",
+			"_type": "object",
+			"fields": [
+				{
+					"__name": "title",
+					"_description": "The title of the post",
+					"_type": "string",
+					"default": "New post",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "content",
+					"_description": "The content of the post",
+					"_type": "string",
+					"default": "# Hello world",
+					"long": true,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "slug",
+					"_description": "The slug of the post",
+					"_type": "string",
+					"default": "new-post-slug",
+					"long": false,
+					"required": true,
+					"validations": [
+						{
+							"unique": true
+						}
+					]
+				},
+				{
+					"__name": "publishedAt",
+					"_description": "The date of creation of the post",
+					"_type": "datetime",
+					"default": "now",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "updatedAt",
+					"_description": "The date of the last update of the post",
+					"_type": "datetime",
+					"default": "now",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "published",
+					"_description": "The date of the last update of the post",
+					"_type": "boolean",
+					"default": false,
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "tags",
+					"_description": "The tags of the post",
+					"_type": "array",
+					"default": [],
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "author",
+					"_description": "The author of the post",
+					"_type": "string",
+					"default": "Lazaro Osee",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "image",
+					"_description": "The image of the post",
+					"_type": "string",
+					"default": "https://source.unsplash.com/random",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "category",
+					"_description": "The main category of the post",
+					"_type": "string",
+					"default": "blog",
+					"long": false,
+					"required": true,
+					"validations": []
+				},
+				{
+					"__name": "meta",
+					"_description": "The meta of the post",
+					"_type": "object",
+					"default": {},
+					"long": false,
+					"required": true,
+					"validations": []
+				}
+			]
+		}
+	}
+}
