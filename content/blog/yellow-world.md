@@ -1,1 +1,0 @@
-# What if the worl was all yellow?
