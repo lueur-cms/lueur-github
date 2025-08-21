@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { PostsPage } from './app/posts'
 import { PostPage } from './app/posts/[slug]'
 import { default as hub_config } from './github_config'
+import { MainLayout } from './layouts'
 import { renderer } from './renderer'
 import { PostType } from './types/post-type'
 import { PostSave } from './types/save'
@@ -12,7 +13,6 @@ type Bindings = {
 	GITHUB_TOKEN: string
 	KV_STORAGE: KVNamespace
 }
-let listSha = 'dfd246f502d15fc73ad1b7d9a1566c62a7acf10a'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -26,38 +26,29 @@ app.get('/posts', (c) => {
 })
 
 // Get a specific post by slug (slug is the filename without extension)
-app.get('/posts/:slug', (c) => {
-	return c.render(<PostPage>hello</PostPage>)
+app.get('/posts/:slug', async (c) => {
+	const { slug } = c.req.param()
+	const metadata = JSON.parse((await c.env.KV_STORAGE.get(`${slug}.md`)) as string)
+
+	return c.render(
+		<MainLayout title="Lueur CMS" meta={[{ name: 'description', content: 'Lueur CMS' }]}>
+			<PostPage metadata={metadata} />
+		</MainLayout>
+	)
 })
 
 // Get KV
 app.get('/api/kv/:key', async (c) => {
 	const { key } = c.req.param()
-	const value = await c.env.KV_STORAGE.get(key)
-	return c.json({ value })
+	const metadata = await c.env.KV_STORAGE.get(key)
+	if (metadata !== null) {
+		return c.json(JSON.parse(metadata!), 200)
+	} else {
+		return c.json(null, 404)
+	}
 })
 
 /// Webhooks
-app.post('/api/webhook/kv', async (c) => {
-	const { post }: { post: PostType } = await c.req.json()
-
-	try {
-		await c.env.KV_STORAGE.put(
-			post.content.name,
-			JSON.stringify({
-				download_url: post.content.download_url,
-				sha: post.commit.sha,
-				name: post.content.name,
-				path: post.content.path,
-				updated_at: post.commit.committer.date,
-			} as PostSave)
-		)
-		return c.json({ message: 'Post metadata saved to KV storage' }, 201)
-	} catch (error) {
-		console.error(error)
-		return c.json({ message: 'An error occured while saving post metadata' }, 500)
-	}
-})
 
 /// API
 // Save posts metadata
@@ -132,12 +123,10 @@ app.post('/api/posts/:slug/create', async (c) => {
 						updated_at: result.commit.committer.date,
 					} as PostSave)
 				)
-				return c.json({ message: 'Post metadata saved to KV storage' }, 201)
 			} catch (error) {
 				console.error(error)
-				return c.json({ message: 'An error occured while saving post metadata' }, 500)
 			}
-			return c.json(result)
+			return c.json({ result }, 201)
 		} else {
 			throw new Error('An error occured', { cause: JSON.stringify(response.json(), null, 2) })
 		}
