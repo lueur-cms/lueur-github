@@ -1,14 +1,8 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"assets": {
-		"directory": "./public"
-	},
-	// "kv_namespaces": [
-	//   {
-	//     "binding": "MY_KV_NAMESPACE",
-	//     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-	//   }
-	// ],
+	// "assets": {
+	// 	"directory": "./public"
+	// },
 	// "r2_buckets": [
 	//   {
 	//     "binding": "MY_BUCKET",
@@ -27,6 +21,36 @@
 	// }
 	"compatibility_date": "2025-08-21",
 	"compatibility_flags": ["nodejs_compat"],
+	"env": {
+		"preview": {
+			"kv_namespaces": [
+				{
+					"binding": "KV_STORAGE",
+					"id": "50dbcdbe5d8549af9c2c16f239a33b10"
+				}
+			],
+			"vars": {
+				"GITHUB_BASE_API_URL": "https://api.github.com"
+			}
+		},
+		"production": {
+			"kv_namespaces": [
+				{
+					"binding": "KV_STORAGE",
+					"id": "50dbcdbe5d8549af9c2c16f239a33b10"
+				}
+			],
+			"vars": {
+				"GITHUB_BASE_API_URL": "https://api.github.com"
+			}
+		}
+	},
+	"kv_namespaces": [
+		{
+			"binding": "KV_STORAGE",
+			"id": "50dbcdbe5d8549af9c2c16f239a33b10"
+		}
+	],
 	"name": "lueur-github",
 	"pages_build_output_dir": "./dist",
 	"vars": {

@@ -1,8 +1,7 @@
-import { Context, Hono } from 'hono'
+import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { PostsPage } from './app/posts'
 import { PostPage } from './app/posts/[slug]'
-import { getPostsList } from './functions/posts/get'
 import { default as hub_config } from './github_config'
 import { renderer } from './renderer'
 import { PostType } from './types/post-type'
@@ -11,7 +10,9 @@ import { PostSave } from './types/save'
 type Bindings = {
 	GITHUB_BASE_API_URL: string
 	GITHUB_TOKEN: string
+	KV_STORAGE: KVNamespace
 }
+let listSha = 'dfd246f502d15fc73ad1b7d9a1566c62a7acf10a'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -29,73 +30,41 @@ app.get('/posts/:slug', (c) => {
 	return c.render(<PostPage>hello</PostPage>)
 })
 
+// Get KV
+app.get('/api/kv/:key', async (c) => {
+	const { key } = c.req.param()
+	const value = await c.env.KV_STORAGE.get(key)
+	return c.json({ value })
+})
+
 /// Webhooks
-
-/// API
-// Save posts metadata
-app.post('/api/posts/save', async (c) => {
-	const { post }: { post: PostSave } = await c.req.json()
-	const githubUrl = c.env.GITHUB_BASE_API_URL
-	const file_path = `content/blog/posts-list.json`
-
-	let newList: PostSave[] = []
-
-	if (!post) {
-		return c.json({ message: 'Missing required param post' }, 500)
-	}
+app.post('/api/webhook/kv', async (c) => {
+	const { post }: { post: PostType } = await c.req.json()
 
 	try {
-		const listResponse = await getPostsList()
-		if (!listResponse) {
-			return c.json({ message: 'An error occured while getting posts list' }, 500)
-		}
-		if (!listResponse.find((item) => item?.path === post.path)) {
-			listResponse.push(post)
-		} else {
-			newList = listResponse.map((item) => {
-				if (item?.path === post.path) {
-					return {
-						...item,
-						...post,
-					}
-				}
-			})
-		}
-		console.log(listResponse)
-
-		const response = await fetch(
-			`${githubUrl}/repos/${hub_config.owner}/${hub_config.repo}/contents/${file_path}`,
-			{
-				method: 'PUT',
-				headers: {
-					Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-					Accept: 'application/vnd.github.v3+json',
-					'Content-Type': 'application/json',
-					'X-GitHub-Api-Version': '2022-11-28',
-					'User-Agent': 'lueur-cms',
-				},
-				body: JSON.stringify({
-					message: 'Add or update post',
-					content: btoa(JSON.stringify(newList, null, 2)),
-					branch: hub_config.branch,
-					commiter: hub_config.committer,
-				}),
-			}
+		await c.env.KV_STORAGE.put(
+			post.content.name,
+			JSON.stringify({
+				download_url: post.content.download_url,
+				sha: post.commit.sha,
+				name: post.content.name,
+				path: post.content.path,
+				updated_at: post.commit.committer.date,
+			} as PostSave)
 		)
-
-		if (response.ok) {
-			const result = (await response.json()) as PostType
-			return c.json({ post: result })
-		} else {
-			throw new Error('An error occured', { cause: JSON.stringify(response.json(), null, 2) })
-		}
+		return c.json({ message: 'Post metadata saved to KV storage' }, 201)
 	} catch (error) {
-		return c.json(c.error, 500)
+		console.error(error)
+		return c.json({ message: 'An error occured while saving post metadata' }, 500)
 	}
 })
 
+/// API
+// Save posts metadata
+// ...
+
 // Get all posts
-app.get('/api/posts', (c: Context) => {
+app.get('/api/posts', (c) => {
 	return c.json({ posts: [] })
 })
 
@@ -149,27 +118,26 @@ app.post('/api/posts/:slug/create', async (c) => {
 		if (response.ok) {
 			const result = (await response.json()) as PostType
 
-			{
-				const savePost = await fetch('/api/posts/save', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						post: {
-							download_url: result.content.download_url,
-							sha: result.commit.sha,
-							name: result.content.name,
-							path: result.content.path,
-							updated_at: result.commit.committer.date,
-						} as PostSave,
-					}),
-				})
-				if (!savePost.ok) {
-					return c.json({ message: 'An error occured while saving post metadata' }, 500)
-				}
+			console.log(result)
+
+			// Send the post metadata to KV storage webhook
+			try {
+				await c.env.KV_STORAGE.put(
+					`${result.content.name}`,
+					JSON.stringify({
+						download_url: result.content.download_url,
+						sha: result.commit.sha,
+						name: result.content.name,
+						path: result.content.path,
+						updated_at: result.commit.committer.date,
+					} as PostSave)
+				)
+				return c.json({ message: 'Post metadata saved to KV storage' }, 201)
+			} catch (error) {
+				console.error(error)
+				return c.json({ message: 'An error occured while saving post metadata' }, 500)
 			}
-			return c.json({ post: result })
+			return c.json(result)
 		} else {
 			throw new Error('An error occured', { cause: JSON.stringify(response.json(), null, 2) })
 		}
