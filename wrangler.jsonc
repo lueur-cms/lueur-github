@@ -3,9 +3,6 @@
 	"assets": {
 		"directory": "./public"
 	},
-	// "vars": {
-	//   "MY_VAR": "my-variable"
-	// },
 	// "kv_namespaces": [
 	//   {
 	//     "binding": "MY_KV_NAMESPACE",
@@ -31,5 +28,8 @@
 	"compatibility_date": "2025-08-21",
 	"compatibility_flags": ["nodejs_compat"],
 	"name": "lueur-github",
-	"pages_build_output_dir": "./dist"
+	"pages_build_output_dir": "./dist",
+	"vars": {
+		"GITHUB_BASE_API_URL": "https://api.github.com"
+	}
 }
